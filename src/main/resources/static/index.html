@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DriveXpress | Premium Car Rentals</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .panel-header { border-left: 5px solid #ffc107; padding-left: 10px; }
+        .car-card { transition: transform 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: none; }
+        .car-card:hover { transform: translateY(-3px); }
+        .hero-section {
+            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
+                        url('https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1920&q=80') no-repeat center center/cover;
+            color: white;
+            padding: 60px 0;
+            margin-bottom: 40px;
+        }
+    </style>
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold text-warning" href="#"><i class="fa-solid fa-car-on me-2"></i>DriveXpress</a>
+            <span class="navbar-text text-white-50">Customer Portal</span>
+        </div>
+    </nav>
+
+    <header class="hero-section text-center">
+        <div class="container">
+            <h1 class="display-5 fw-bold">Find Your Perfect Ride</h1>
+            <p class="lead mb-0">Premium cars available instantly from your nearest operational hub.</p>
+        </div>
+    </header>
+
+    <main class="container my-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+            <h2 class="panel-header fw-bold text-dark">Available Fleet Inventory</h2>
+            <div class="d-flex gap-2">
+                <input type="text" id="searchHub" class="form-control" placeholder="Search City (e.g. Ahmedabad)">
+                <button onclick="filterHub()" class="btn btn-warning fw-bold px-4">Search</button>
+                <button onclick="loadUserWorkspace()" class="btn btn-secondary">Reset</button>
+            </div>
+        </div>
+
+        <div id="userGrid" class="row row-cols-1 row-cols-md-3 g-4"></div>
+    </main>
+
+    <script>
+        const URL = window.location.origin + '/api/vehicles';
+
+        document.addEventListener("DOMContentLoaded", loadUserWorkspace);
+
+        async function loadUserWorkspace() {
+            try {
+                const res = await fetch(URL);
+                const cars = await res.json();
+                renderUserView(cars);
+            } catch (err) { console.error("Failed to fetch fleet data", err); }
+        }
+
+        async function filterHub() {
+            const loc = document.getElementById('searchHub').value.trim();
+            if(!loc) { loadUserWorkspace(); return; }
+            try {
+                const res = await fetch(`${URL}/search?hubLocation=${encodeURIComponent(loc)}`);
+                renderUserView(await res.json());
+            } catch(e) {}
+        }
+
+        function renderUserView(cars) {
+            const grid = document.getElementById('userGrid');
+            grid.innerHTML = '';
+            
+            cars.forEach(car => {
+                let badgeColor = "bg-success";
+                let actionButton = `<button onclick="triggerRent(${car.id})" class="btn btn-dark w-100 fw-bold py-2">Confirm & Rent Ride</button>`;
+                
+                // Explicitly check and block states based on lifecycle rules
+                if (car.status === "RENTED") {
+                    badgeColor = "bg-danger";
+                    actionButton = `<button onclick="triggerReturn(${car.id})" class="btn btn-outline-danger w-100 fw-bold py-2"><i class="fa-solid fa-arrow-rotate-left me-2"></i>Return Vehicle</button>`;
+                } else if (car.status === "UNDER_REVIEW") {
+                    badgeColor = "bg-warning text-dark";
+                    actionButton = `<button class="btn btn-secondary w-100 py-2" disabled><i class="fa-solid fa-spinner fa-spin me-2"></i>Processing Return...</button>`;
+                } else if (car.status === "MAINTENANCE") {
+                    badgeColor = "bg-secondary";
+                    actionButton = `<button class="btn btn-outline-secondary w-100 py-2" disabled><i class="fa-solid fa-screwdriver-wrench me-2"></i>Temporarily Unavailable</button>`;
+                }
+
+                grid.innerHTML += `
+                    <div class="col">
+                        <div class="card h-100 car-card position-relative">
+                            <span class="badge ${badgeColor} position-absolute" style="top:15px; right:15px; font-size: 0.85rem;">${car.status}</span>
+                            <img src="${car.imageUrl || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80'}" class="card-img-top" style="height:200px; object-fit:cover;">
+                            <div class="card-body d-flex flex-column">
+                                <h4 class="card-title fw-bold mb-1">${car.brand} ${car.modelName}</h4>
+                                <p class="text-muted small mb-3"><i class="fa-solid fa-location-dot text-danger me-1"></i>Hub: <b>${car.currentHubLocation}</b></p>
+                                
+                                <div class="bg-light p-2 rounded mb-3 small row g-1 text-center text-secondary">
+                                    <div class="col-4 border-end">${car.vehicleType || 'Car'}</div>
+                                    <div class="col-4 border-end">${car.transmission || 'Auto'}</div>
+                                    <div class="col-4">${car.fuelType || 'Petrol'}</div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label small text-muted fw-bold mb-1"><i class="fa-regular fa-calendar me-1"></i>Select Booking Period:</label>
+                                    <input type="datetime-local" class="form-control form-control-sm" value="2026-07-05T10:00" ${car.status === "MAINTENANCE" ? 'disabled' : ''}>
+                                </div>
+
+                                <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center mb-3">
+                                    <div><span class="fs-3 fw-bold text-dark">₹${car.pricePerDay}</span><span class="text-muted small">/day</span></div>
+                                </div>
+                                ${actionButton}
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        async function triggerRent(id) {
+            await fetch(`${URL}/${id}/rent`, { method: 'POST' });
+            loadUserWorkspace();
+        }
+
+        async function triggerReturn(id) {
+            await fetch(`${URL}/${id}/return`, { method: 'POST' });
+            loadUserWorkspace();
+        }
+    </script>
+</body>
+</html>
