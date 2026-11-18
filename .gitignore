@@ -23,3 +23,6 @@ frontend/dist/
 .project
 .DS_Store
 Thumbs.db
+
+# Production settings to paste into Render - never commit
+deploy/render.env
