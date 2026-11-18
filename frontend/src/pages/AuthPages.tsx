@@ -9,7 +9,13 @@ import { ApiError } from '../lib/api'
 import { firstName } from '../lib/human'
 import type { User } from '../lib/types'
 
-const SIDE_IMG = 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&w=1200&q=80'
+/** Public demo logins (kept in sync by the backend seeder: ADMIN_PASSWORD / DEMO_PASSWORD). */
+const DEMO_ACCOUNTS = [
+  { label: 'Customer', email: 'demo@drivexpress.com', password: 'demo1234' },
+  { label: 'Admin', email: 'admin@drivexpress.com', password: 'admin1234' },
+]
+
+const SIDE_IMG ='https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&w=1200&q=80'
 
 function AuthShell({ title, subtitle, children }: { title: string; subtitle: ReactNode; children: ReactNode }) {
   return (
@@ -115,19 +121,25 @@ export function LoginPage() {
         </button>
       </form>
 
-      {import.meta.env.DEV && (
-        <div className="mt-8 rounded-2xl border border-dashed border-stone-300/80 bg-white/40 p-4 text-xs text-stone-500">
-          <div className="mb-2 font-semibold text-stone-700">Just exploring? Use a demo account (dev only)</div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn-ghost btn-sm" onClick={() => { setEmail('demo@drivexpress.com'); setPassword('Demo@1234') }}>
-              Customer
+      <div className="mt-8 rounded-2xl border border-dashed border-stone-300/80 bg-white/40 p-4 text-xs text-stone-500">
+        <div className="mb-2 font-semibold text-stone-700">Just exploring? Try a demo account</div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {DEMO_ACCOUNTS.map((a) => (
+            <button
+              key={a.label}
+              type="button"
+              className="rounded-xl border border-white/80 bg-white/60 px-3 py-2 text-left transition hover:bg-white"
+              onClick={() => {
+                setEmail(a.email)
+                setPassword(a.password)
+              }}
+            >
+              <div className="font-semibold text-ink">{a.label}</div>
+              <div className="font-mono text-[11px] text-stone-500">{a.email} / {a.password}</div>
             </button>
-            <button type="button" className="btn-ghost btn-sm" onClick={() => { setEmail('admin@drivexpress.com'); setPassword('Admin@123') }}>
-              Admin
-            </button>
-          </div>
+          ))}
         </div>
-      )}
+      </div>
     </AuthShell>
   )
 }

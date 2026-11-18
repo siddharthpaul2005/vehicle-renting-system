@@ -43,6 +43,10 @@ public class User {
         createdAt = Instant.now();
     }
 
+    public void changePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public Long getId() { return id; }
     public String getFullName() { return fullName; }
     public String getEmail() { return email; }

@@ -22,8 +22,13 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Creates the admin account and a demo fleet on first start. It never deletes anything:
- * vehicles are only inserted when the table is empty, users only when the email is missing.
+ * Prepares a ready-to-explore demo. It never deletes anything:
+ * <ul>
+ *   <li>the admin and demo-customer accounts are created if missing, and their passwords are kept in sync
+ *       with {@code ADMIN_PASSWORD} / {@code DEMO_PASSWORD}, so changing those env vars takes effect on restart;</li>
+ *   <li>the demo fleet is inserted only when the vehicles table is empty.</li>
+ * </ul>
+ * Turn it off entirely with {@code SEED_DATA=false}.
  */
 @Component
 @ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true")
@@ -41,22 +46,28 @@ public class DataSeeder implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
     private final String adminEmail;
     private final String adminPassword;
+    private final String demoEmail;
+    private final String demoPassword;
 
     public DataSeeder(UserRepository users, VehicleRepository vehicles, PasswordEncoder passwordEncoder,
                       @Value("${app.seed.admin-email}") String adminEmail,
-                      @Value("${app.seed.admin-password}") String adminPassword) {
+                      @Value("${app.seed.admin-password}") String adminPassword,
+                      @Value("${app.seed.demo-email}") String demoEmail,
+                      @Value("${app.seed.demo-password}") String demoPassword) {
         this.users = users;
         this.vehicles = vehicles;
         this.passwordEncoder = passwordEncoder;
-        this.adminEmail = adminEmail.toLowerCase(Locale.ROOT);
+        this.adminEmail = adminEmail.trim().toLowerCase(Locale.ROOT);
         this.adminPassword = adminPassword;
+        this.demoEmail = demoEmail.trim().toLowerCase(Locale.ROOT);
+        this.demoPassword = demoPassword;
     }
 
     @Override
     @Transactional
     public void run(String... args) {
-        createUserIfMissing("Fleet Admin", adminEmail, adminPassword, Role.ADMIN);
-        createUserIfMissing("Demo Customer", "demo@drivexpress.com", "Demo@1234", Role.CUSTOMER);
+        ensureAccount("Fleet Admin", adminEmail, adminPassword, Role.ADMIN);
+        ensureAccount("Demo Customer", demoEmail, demoPassword, Role.CUSTOMER);
 
         if (vehicles.count() == 0) {
             vehicles.saveAll(demoFleet());
@@ -64,11 +75,19 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
-    private void createUserIfMissing(String name, String email, String password, Role role) {
-        if (!users.existsByEmailIgnoreCase(email)) {
-            users.save(new User(name, email, passwordEncoder.encode(password), role));
-            log.info("Created {} account {}", role, email);
-        }
+    /** Creates the account if missing; otherwise makes sure its password matches the configured one. */
+    private void ensureAccount(String name, String email, String password, Role role) {
+        users.findByEmailIgnoreCase(email).ifPresentOrElse(
+                existing -> {
+                    if (!passwordEncoder.matches(password, existing.getPasswordHash())) {
+                        existing.changePasswordHash(passwordEncoder.encode(password));
+                        log.info("Updated password of {} account {} to the configured value", role, email);
+                    }
+                },
+                () -> {
+                    users.save(new User(name, email, passwordEncoder.encode(password), role));
+                    log.info("Created {} account {}", role, email);
+                });
     }
 
     private static List<Vehicle> demoFleet() {
