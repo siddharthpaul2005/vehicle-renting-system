@@ -1,7 +1,7 @@
 # One image = React frontend + Spring Boot API, served together on $PORT (Render sets it).
 
-# 1) Build the React app
-FROM node:22-alpine AS frontend
+# 1) Build the React app (Debian/glibc: TypeScript 7's native compiler has no musl/Alpine build)
+FROM node:22-slim AS frontend
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
